@@ -20,7 +20,6 @@ public class KakaoBankTest {
 		
 		if(args.length <= 0) {
 			System.out.println("java argument에[comments.cvs]파일이 저장된 디렉토리 경로를 지정해주세요."); 
-			System.out.println("ex) java KakaoBankTest.class /kakaobank"); 
 			return;
 		}
 		
