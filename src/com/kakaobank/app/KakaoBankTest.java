@@ -73,11 +73,11 @@ public class KakaoBankTest {
 							// 1.4.1 SchoolType 이후 단어는 삭제 (예: 중학교를 -> 중학교)
 							s = s.substring(0, s.indexOf(schoolType.getType()) + schoolType.getType().length());
 							
-							// 1.4.2 각각 여자상업고등학교의 경우 여자나 체육의 경우 해당 단어에 맞게 6자리 4자리 2자리로 축소한다.
-							if(s.indexOf(schoolType.getType()) >= 6 && s.indexOf("여자상업고등학교") > 0) {
+							// 1.4.2 학교명칭을 축약
+							if(s.indexOf(schoolType.getType()) >= 6 && s.indexOf("여자상업") > 0) {
 								s = s.substring(s.indexOf(schoolType.getType()) - 6);
 							}
-							else if(s.indexOf(schoolType.getType()) >= 4 && (s.indexOf("여자") > 0 || s.indexOf("체육") > 0)) {
+							else if(s.indexOf(schoolType.getType()) >= 4 && (s.indexOf("여자") > 0 || s.indexOf("체육") > 0 || s.indexOf("상업") > 0 || s.indexOf("농업") > 0)) {
 								s = s.substring(s.indexOf(schoolType.getType()) - 4);
 							}
 							else if(s.indexOf(schoolType.getType()) >= 2){
