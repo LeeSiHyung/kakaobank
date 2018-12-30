@@ -40,7 +40,7 @@ public class KakaoBankTest {
 			System.err.println("Files.readAllBytes Error " + e.getMessage());
 		}
 		
-		Map<String, Long> schoolCount = getSchoolCountMap(fileBytes);
+		Map<String, Long> schoolCount = getSchoolCountMap(new String(fileBytes, StandardCharsets.UTF_8));
 		
 		// 2. 출력
 		Path writePath = Paths.get(rootPath, RESULT_FILE_PATH);
@@ -49,18 +49,16 @@ public class KakaoBankTest {
 		
 	}
 
-	private static ConcurrentMap<String, Long> getSchoolCountMap(byte[] fileBytes){
+	private static ConcurrentMap<String, Long> getSchoolCountMap(String word){
 		
 		return Arrays.asList(
-				// 1.1 파일 데이터 읽기
-				new String(fileBytes, StandardCharsets.UTF_8)
-				// 1.2 단어별로 split
-				.split("\\PL+"))
-				// 1.3 병렬 스트림
+				// 1.1 단어별로 split
+				word.split("\\PL+"))
+				// 1.2 병렬 스트림
 				.parallelStream()
-				// 1.4 필터
+				// 1.3 필터
 				.filter(s -> {
-					// SchoolType 해당하는 단어로 포함되거나 시작되지 않는 항목 검색 (예: 중학교, 고등학교)
+					// 1.3.1 SchoolType 해당하는 단어로 포함되거나 시작되지 않는 항목 검색 (예: 중학교, 고등학교)
 					for(SchoolType type : SchoolType.values()) {
 						if(s.contains(type.getType()) && !s.startsWith(type.getType())){
 							return true;
@@ -68,21 +66,28 @@ public class KakaoBankTest {
 					}
 					return false;
 				})
-				// 1.5 그룹핑 (학교명/카운트)
+				// 1.4 그룹핑 (학교명/카운트)
 				.collect(Collectors.groupingByConcurrent(s -> {
 					for(SchoolType schoolType : SchoolType.values()) {
 						if(s.contains(schoolType.getType())){
-							// 1.5.1 SchoolType 이후 단어는 삭제 (예: 중학교를 -> 중학교)
+							// 1.4.1 SchoolType 이후 단어는 삭제 (예: 중학교를 -> 중학교)
 							s = s.substring(0, s.indexOf(schoolType.getType()) + schoolType.getType().length());
 							
-							// 1.5.2 SchoolType 단어 앞 2자리만 가져옴 (예 : 서울공연예술고등학교 -> 예술고등학교)
-							s = s.indexOf(schoolType.getType()) >= 2 ? 
-									s.substring(s.indexOf(schoolType.getType()) - 2) : s;
+							// 1.4.2 각각 여자상업고등학교의 경우 여자나 체육의 경우 해당 단어에 맞게 6자리 4자리 2자리로 축소한다.
+							if(s.indexOf(schoolType.getType()) >= 6 && s.indexOf("여자상업고등학교") > 0) {
+								s = s.substring(s.indexOf(schoolType.getType()) - 6);
+							}
+							else if(s.indexOf(schoolType.getType()) >= 4 && (s.indexOf("여자") > 0 || s.indexOf("체육") > 0)) {
+								s = s.substring(s.indexOf(schoolType.getType()) - 4);
+							}
+							else if(s.indexOf(schoolType.getType()) >= 2){
+								s = s.substring(s.indexOf(schoolType.getType()) - 2);
+							}
 						}
 					}
 					return s;
 					
-				// 1.6 학교 그룹별 카운트
+				// 1.5 학교 그룹별 카운트
 				}, Collectors.counting()));
 	}
 	
@@ -92,9 +97,9 @@ public class KakaoBankTest {
 		wordCount.forEach( (k, v) -> 
 			{
 				try {
+					System.out.println(k + " " + v);
 					// 2.1.1  라인단위로 학교명 + \t + 카운트 + \n write
 					Files.write(writePath, (k + "\t" + v + "\n").getBytes(), StandardOpenOption.APPEND);
-					System.out.println(k + " " + v);
 				} catch (IOException e) {
 					System.err.println("Files.write Error : " + e.getMessage());
 				}
@@ -103,14 +108,13 @@ public class KakaoBankTest {
 	}
 	
 	enum SchoolType{
-		
 		ELEMENTARY("초등학교"),
 		MIDDLE("중학교"),
 		HIGH("고등학교"),
 		UNIVERSITY("대학교"),
 		GIRLS_MIDDLE("여중"),
 		GIRLS_HIGH("여고"),
-		WOMENS_UNIVERSITY("여대")
+		WOMENS_UNIVERSITY("여대"),
 		;
 		
 		final String type;
