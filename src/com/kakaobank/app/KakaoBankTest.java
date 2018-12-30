@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
+
 public class KakaoBankTest {
 	
 	static final String READ_FILE_NAME = "comments.csv";
@@ -19,57 +20,47 @@ public class KakaoBankTest {
 	public static void main(String[] args) throws IOException {
 		
 		if(args.length <= 0) {
-			System.out.println("java argument¿¡[comments.cvs]ÆÄÀÏÀÌ ÀúÀåµÈ µğ·ºÅä¸® °æ·Î¸¦ ÁöÁ¤ÇØÁÖ¼¼¿ä."); 
+			System.out.println("java argumentì—[comments.cvs]íŒŒì¼ì´ ì €ì¥ëœ ë””ë ‰í† ë¦¬ ê²½ë¡œë¥¼ ì§€ì •í•´ì£¼ì„¸ìš”."); 
 			return;
 		}
 		
 		String rootPath = args[0];
-
+		
+		// 1. ì²˜ë¦¬
 		Path readPath = Paths.get(rootPath, READ_FILE_NAME);
 		if(!Files.exists(readPath)) {
-			System.out.println("ÁöÁ¤µÈ °æ·Î¿¡ [comments.cvs]ÆÄÀÏÀÌ  Á¸ÀçÇÏÁö ¾Ê½À´Ï´Ù.");
+			System.out.println("ì§€ì •ëœ ê²½ë¡œì— [comments.cvs]íŒŒì¼ì´  ì¡´ì¬í•˜ì§€ ì•ŠìŠµë‹ˆë‹¤.");
 			return;
 		}
 		
+		byte[] fileBytes = null;
+		try {
+			fileBytes = Files.readAllBytes(readPath);
+		} catch (IOException e) {
+			System.err.println("Files.readAllBytes Error " + e.getMessage());
+		}
+		
+		Map<String, Long> schoolCount = getSchoolCountMap(fileBytes);
+		
+		// 2. ì¶œë ¥
 		Path writePath = Paths.get(rootPath, RESULT_FILE_PATH);
 		if(Files.exists(writePath)) Files.delete(writePath); Files.createFile(writePath);
-		
-		// 1. Ã³¸®
-		Map<String, Long> wordCount = schoolCount(readPath);
-		
-		// 2. Ãâ·Â
-		writeFile(writePath, wordCount);
+		writeFile(writePath, schoolCount);
 		
 	}
 
-	private static void writeFile(Path writePath, Map<String, Long> wordCount) throws IOException {
-		
-		// 2.1 ÇĞ±³Ä«¿îÆ® lineº° write
-		wordCount.forEach( (k, v) -> 
-			{
-				try {
-					// 2.1.1  ¶óÀÎ´ÜÀ§·Î ÇĞ±³¸í + \t + Ä«¿îÆ® + \n write
-					Files.write(writePath, (k + "\t" + v + "\n").getBytes(), StandardOpenOption.APPEND);
-					System.out.println(k + " " + v);
-				} catch (IOException e) {
-					System.err.println("Files.write Error [Key(" + k + ")]" + e.getMessage());
-				}
-			}
-		);
-	}
-
-	private static ConcurrentMap<String, Long> schoolCount(Path p) throws IOException {
+	private static ConcurrentMap<String, Long> getSchoolCountMap(byte[] fileBytes){
 		
 		return Arrays.asList(
-				// 1.1 ÆÄÀÏ µ¥ÀÌÅÍ ÀĞ±â
-				new String(Files.readAllBytes(p), StandardCharsets.UTF_8)
-				// 1.2 ´Ü¾îº°·Î split
+				// 1.1 íŒŒì¼ ë°ì´í„° ì½ê¸°
+				new String(fileBytes, StandardCharsets.UTF_8)
+				// 1.2 ë‹¨ì–´ë³„ë¡œ split
 				.split("\\PL+"))
-				// 1.3 º´·Ä ½ºÆ®¸²
+				// 1.3 ë³‘ë ¬ ìŠ¤íŠ¸ë¦¼
 				.parallelStream()
-				// 1.4 ÇÊÅÍ
+				// 1.4 í•„í„°
 				.filter(s -> {
-					// SchoolType ÇØ´çÇÏ´Â ´Ü¾î·Î Æ÷ÇÔµÇ°Å³ª ½ÃÀÛµÇÁö ¾Ê´Â Ç×¸ñ °Ë»ö (¿¹: ÁßÇĞ±³, °íµîÇĞ±³)
+					// SchoolType í•´ë‹¹í•˜ëŠ” ë‹¨ì–´ë¡œ í¬í•¨ë˜ê±°ë‚˜ ì‹œì‘ë˜ì§€ ì•ŠëŠ” í•­ëª© ê²€ìƒ‰ (ì˜ˆ: ì¤‘í•™êµ, ê³ ë“±í•™êµ)
 					for(SchoolType type : SchoolType.values()) {
 						if(s.contains(type.getType()) && !s.startsWith(type.getType())){
 							return true;
@@ -77,34 +68,49 @@ public class KakaoBankTest {
 					}
 					return false;
 				})
-				// 1.5 ±×·ìÇÎ (ÇĞ±³¸í/Ä«¿îÆ®)
+				// 1.5 ê·¸ë£¹í•‘ (í•™êµëª…/ì¹´ìš´íŠ¸)
 				.collect(Collectors.groupingByConcurrent(s -> {
 					for(SchoolType schoolType : SchoolType.values()) {
 						if(s.contains(schoolType.getType())){
-							// 1.5.1 SchoolType ÀÌÈÄ ´Ü¾î´Â »èÁ¦ (¿¹: ÁßÇĞ±³¸¦ -> ÁßÇĞ±³)
+							// 1.5.1 SchoolType ì´í›„ ë‹¨ì–´ëŠ” ì‚­ì œ (ì˜ˆ: ì¤‘í•™êµë¥¼ -> ì¤‘í•™êµ)
 							s = s.substring(0, s.indexOf(schoolType.getType()) + schoolType.getType().length());
 							
-							// 1.5.2 SchoolType ´Ü¾î ¾Õ 2ÀÚ¸®¸¸ °¡Á®¿È (¿¹ : ¼­¿ï°ø¿¬¿¹¼ú°íµîÇĞ±³ -> ¿¹¼ú°íµîÇĞ±³)
+							// 1.5.2 SchoolType ë‹¨ì–´ ì• 2ìë¦¬ë§Œ ê°€ì ¸ì˜´ (ì˜ˆ : ì„œìš¸ê³µì—°ì˜ˆìˆ ê³ ë“±í•™êµ -> ì˜ˆìˆ ê³ ë“±í•™êµ)
 							s = s.indexOf(schoolType.getType()) >= 2 ? 
 									s.substring(s.indexOf(schoolType.getType()) - 2) : s;
 						}
 					}
 					return s;
 					
-				// 1.6 ÇĞ±³ ±×·ìº° Ä«¿îÆ®
+				// 1.6 í•™êµ ê·¸ë£¹ë³„ ì¹´ìš´íŠ¸
 				}, Collectors.counting()));
 	}
-
+	
+	private static void writeFile(Path writePath, Map<String, Long> wordCount) throws IOException {
+		
+		// 2.1 í•™êµì¹´ìš´íŠ¸ lineë³„ write
+		wordCount.forEach( (k, v) -> 
+			{
+				try {
+					// 2.1.1  ë¼ì¸ë‹¨ìœ„ë¡œ í•™êµëª… + \t + ì¹´ìš´íŠ¸ + \n write
+					Files.write(writePath, (k + "\t" + v + "\n").getBytes(), StandardOpenOption.APPEND);
+					System.out.println(k + " " + v);
+				} catch (IOException e) {
+					System.err.println("Files.write Error : " + e.getMessage());
+				}
+			}
+		);
+	}
 	
 	enum SchoolType{
 		
-		ELEMENTARY("ÃÊµîÇĞ±³"),
-		MIDDLE("ÁßÇĞ±³"),
-		HIGH("°íµîÇĞ±³"),
-		UNIVERSITY("´ëÇĞ±³"),
-		GIRLS_MIDDLE("¿©Áß"),
-		GIRLS_HIGH("¿©°í"),
-		WOMENS_UNIVERSITY("¿©´ë")
+		ELEMENTARY("ì´ˆë“±í•™êµ"),
+		MIDDLE("ì¤‘í•™êµ"),
+		HIGH("ê³ ë“±í•™êµ"),
+		UNIVERSITY("ëŒ€í•™êµ"),
+		GIRLS_MIDDLE("ì—¬ì¤‘"),
+		GIRLS_HIGH("ì—¬ê³ "),
+		WOMENS_UNIVERSITY("ì—¬ëŒ€")
 		;
 		
 		final String type;
